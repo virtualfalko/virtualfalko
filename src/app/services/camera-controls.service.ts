@@ -40,8 +40,12 @@ export class CameraControlsService implements OnDestroy {
 
   setupControls(renderer: THREE.WebGLRenderer): OrbitControls {
     this.controls = new OrbitControls(this.camera, renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.05;
+
+    this.controls.enableRotate = false;
+    this.controls.enableZoom = false;
+    this.controls.enablePan = false;
+    this.controls.enableDamping = false;
+
     return this.controls;
   }
 

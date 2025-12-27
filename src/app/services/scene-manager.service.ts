@@ -7,7 +7,6 @@ export class SceneManagerService {
 
   createScene(backgroundColor: number = 0x000000): THREE.Scene {
     this.scene = new THREE.Scene();
-    // Don't set background color - let it be transparent
     return this.scene;
   }
 

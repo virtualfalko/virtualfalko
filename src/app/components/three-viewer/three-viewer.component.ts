@@ -11,9 +11,12 @@ import * as THREE from 'three';
   styleUrls: ['./three-viewer.component.css'],
   standalone: true
 })
+
 export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
   private animationFrameId!: number;
+  private sun1: THREE.Group | null = null;  // Store reference to sun1
+  private sun2: THREE.Group | null = null;  // Store reference to sun2
 
   constructor(
     private threeEngine: ThreeEngineService,
@@ -34,34 +37,40 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
     this.threeEngine.initialize(canvas);
 
     // 2. Create scene with lighting
-    const scene = this.sceneManager.createScene(); // Don't pass color
+    const scene = this.sceneManager.createScene();
     this.sceneManager.addBasicLighting();
 
     // 3. Create camera
     const aspect = canvas.clientWidth / canvas.clientHeight;
     const camera = this.cameraControls.createCamera(aspect, {
       fov: 60,
-      position: { x: 0, y: 0, z: 5 }
+      position: { x: 0, y: 0, z: 8 }
     });
 
     // 4. Setup controls
     const renderer = this.threeEngine.getRenderer();
     this.cameraControls.setupControls(renderer);
 
-    // 5. Load model
+    // 5. Load FIRST sun model
     try {
-      const model = await this.modelLoader.loadGLTF('/assets/models/sun.glb', {
-        scale: 2.5,
-        position: { x: 0, y: 0, z: 0 }
+      this.sun1 = await this.modelLoader.loadGLTF('/assets/models/sun.glb', {
+        scale: 1.0,
       });
-      scene.add(model);
+      scene.add(this.sun1);
+      this.sun1.position.set(-2, 0, 0);
+
+      // 6. Load SECOND sun model
+      this.sun2 = await this.modelLoader.loadGLTF('/assets/models/sun.glb', {
+        scale: 1.0,
+      });
+      scene.add(this.sun2);
+      this.sun2.position.set(2, 0, 0);
+
     } catch (error) {
-      console.log('Using fallback cube');
-      const cube = this.modelLoader.createFallbackCube();
-      scene.add(cube);
+      console.log('Couldnt load');
     }
 
-    // 6. Start render loop
+    // 7. Start render loop
     this.threeEngine.startRenderLoop((deltaTime) => {
       this.update(deltaTime);
       this.render(scene, camera);
@@ -69,13 +78,11 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
   }
 
   private update(deltaTime: number): void {
-    // Update camera controls
     this.cameraControls.updateControls();
 
-    // Add rotation animation
-    const scene = this.sceneManager.getScene();
-    if (scene) {
-      scene.rotation.y += 0.002 * deltaTime * 60; // Smooth rotation
+    if (this.sun1) {
+      this.sun1.rotation.y += 0.0005;
+      this.sun1.rotation.x += 0.0005;
     }
   }
 

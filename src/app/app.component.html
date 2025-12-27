@@ -1,12 +1,14 @@
 <div class="min-h-screen bg-gradient-to-b from-blue-700 to-blue-100 flex flex-col items-center p-6 relative">
 
   <!-- 3D Model in the background -->
-  <div class="absolute inset-0 z-0">
-    <app-three-viewer></app-three-viewer>
+  <div class="absolute">
+    <div class="three-container">
+      <app-three-viewer></app-three-viewer>
+    </div>
   </div>
 
   <!-- Content on top -->
-  <div class="relative z-10 pt-16">
+  <div class="relative">
     <div class="w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden mb-12">
       <img
         src="Falko.png"
