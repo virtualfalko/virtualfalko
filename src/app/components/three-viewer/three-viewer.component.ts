@@ -15,13 +15,18 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
   private camera: THREE.OrthographicCamera | null = null;
   private renderer: THREE.WebGLRenderer | null = null;
   private frameId: number = 0;
+  private raycaster = new THREE.Raycaster();
+  private mouse = new THREE.Vector2();
 
-  private sun1 = new SunObject({ x: -0.6, y: 0.1, z: 0 }, 0.3);
-  private sun2 = new Sun2Object({ x: 0.6, y: 0.4, z: 0 }, 0.3);
+  private sun1 = new SunObject();
+  private sun2 = new Sun2Object();
 
   async ngAfterViewInit(): Promise<void> {
     await this.init();
     window.addEventListener('resize', () => this.resize());
+
+    const canvas = this.canvasRef.nativeElement;
+    canvas.addEventListener('click', (event) => this.onCanvasClick(event));
   }
 
   private async init(): Promise<void> {
@@ -36,7 +41,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
 
     this.scene = new THREE.Scene();
 
-    // IMPORTANT: Add proper lighting for materials to show
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     this.scene.add(ambientLight);
 
@@ -55,6 +59,31 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
     }
 
     this.animate();
+  }
+
+  private onCanvasClick(event: MouseEvent): void {
+    const canvas = this.canvasRef.nativeElement;
+    const rect = canvas.getBoundingClientRect();
+
+    this.mouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera!);
+
+    if (this.scene) {
+      const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+
+      for (const intersect of intersects) {
+        const object = intersect.object;
+
+        // FIX: Use bracket notation for indexed properties
+        if (object.userData['clickable'] && object.userData['object']) {
+          const sunObject = object.userData['object'] as SunObject | Sun2Object;
+          sunObject.handleClick();
+          break;
+        }
+      }
+    }
   }
 
   private updateCamera(canvas: HTMLCanvasElement): void {
@@ -111,6 +140,10 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     cancelAnimationFrame(this.frameId);
     window.removeEventListener('resize', () => this.resize());
+
+    const canvas = this.canvasRef.nativeElement;
+    canvas.removeEventListener('click', (event) => this.onCanvasClick(event));
+
     this.renderer?.dispose();
   }
 }
