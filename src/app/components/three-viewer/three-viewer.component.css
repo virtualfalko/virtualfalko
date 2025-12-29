@@ -3,7 +3,8 @@
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.27);
+  background: rgba(0, 0, 0, 0.05);
+  margin-top: -25px;
 }
 
 canvas {

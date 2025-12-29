@@ -1,9 +1,6 @@
 import { Component, ElementRef, AfterViewInit, OnDestroy, ViewChild } from '@angular/core';
-import { ThreeEngineService } from '../../services/three-engine.service';
-import { SceneManagerService } from '../../services/scene-manager.service';
-import { CameraControlsService } from '../../services/camera-controls.service';
-import { ModelLoaderService } from '../../services/model-loader.service';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 @Component({
   selector: 'app-three-viewer',
@@ -11,104 +8,144 @@ import * as THREE from 'three';
   styleUrls: ['./three-viewer.component.css'],
   standalone: true
 })
-
 export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
-  @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
-  private animationFrameId!: number;
-  private sun1: THREE.Group | null = null;  // Store reference to sun1
-  private sun2: THREE.Group | null = null;  // Store reference to sun2
-
-  constructor(
-    private threeEngine: ThreeEngineService,
-    private sceneManager: SceneManagerService,
-    private cameraControls: CameraControlsService,
-    private modelLoader: ModelLoaderService
-  ) {}
+  @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+  private sun1: THREE.Group | null = null;
+  private sun2: THREE.Group | null = null;
+  private scene: THREE.Scene | null = null;
+  private camera: THREE.OrthographicCamera | null = null;
+  private renderer: THREE.WebGLRenderer | null = null;
+  private frameId: number = 0;
 
   async ngAfterViewInit(): Promise<void> {
-    await this.initializeThreeJS();
-    this.setupResizeObserver();
+    await this.init();
+    window.addEventListener('resize', () => this.resize());
   }
 
-  private async initializeThreeJS(): Promise<void> {
+  private async init(): Promise<void> {
     const canvas = this.canvasRef.nativeElement;
 
-    // 1. Initialize core engine
-    this.threeEngine.initialize(canvas);
-
-    // 2. Create scene with lighting
-    const scene = this.sceneManager.createScene();
-    this.sceneManager.addBasicLighting();
-
-    // 3. Create camera
-    const aspect = canvas.clientWidth / canvas.clientHeight;
-    const camera = this.cameraControls.createCamera(aspect, {
-      fov: 60,
-      position: { x: 0, y: 0, z: 8 }
+    this.renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: true
     });
+    this.renderer.setClearColor(0x000000, 0);
 
-    // 4. Setup controls
-    const renderer = this.threeEngine.getRenderer();
-    this.cameraControls.setupControls(renderer);
+    this.scene = new THREE.Scene();
 
-    // 5. Load FIRST sun model
-    try {
-      this.sun1 = await this.modelLoader.loadGLTF('/assets/models/sun.glb', {
-        scale: 1.0,
-      });
-      scene.add(this.sun1);
-      this.sun1.position.set(-2, 0, 0);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+    this.scene.add(ambientLight);
 
-      // 6. Load SECOND sun model
-      this.sun2 = await this.modelLoader.loadGLTF('/assets/models/sun.glb', {
-        scale: 1.0,
-      });
-      scene.add(this.sun2);
-      this.sun2.position.set(2, 0, 0);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    directionalLight.position.set(10, 10, 10);
+    this.scene.add(directionalLight);
 
-    } catch (error) {
-      console.log('Couldnt load');
+    this.updateCamera(canvas);
+
+    this.sun1 = await this.loadSun();
+    this.sun2 = await this.loadSun();
+
+    if (this.sun1 && this.sun2 && this.scene) {
+      this.scene.add(this.sun1);
+      this.scene.add(this.sun2);
+
+      this.sun1.scale.setScalar(0.3);
+      this.sun1.position.set(-0.6, 0.1, 0);
+
+      this.sun2.scale.setScalar(0.3);
+      this.sun2.position.set(0.6, 0.4, 0);
     }
 
-    // 7. Start render loop
-    this.threeEngine.startRenderLoop((deltaTime) => {
-      this.update(deltaTime);
-      this.render(scene, camera);
+    this.animate();
+  }
+
+  private updateCamera(canvas: HTMLCanvasElement): void {
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    const aspect = width / height;
+
+    if (!this.camera) {
+      const frustum = 1;
+      if (aspect > 1) {
+        this.camera = new THREE.OrthographicCamera(-frustum * aspect, frustum * aspect, frustum, -frustum, 0.1, 1000);
+      } else {
+        this.camera = new THREE.OrthographicCamera(-frustum, frustum, frustum / aspect, -frustum / aspect, 0.1, 1000);
+      }
+      this.camera.position.z = 5;
+    } else {
+      const frustum = 1;
+      if (aspect > 1) {
+        this.camera.left = -frustum * aspect;
+        this.camera.right = frustum * aspect;
+        this.camera.top = frustum;
+        this.camera.bottom = -frustum;
+      } else {
+        this.camera.left = -frustum;
+        this.camera.right = frustum;
+        this.camera.top = frustum / aspect;
+        this.camera.bottom = -frustum / aspect;
+      }
+      this.camera.updateProjectionMatrix();
+    }
+
+    if (this.renderer) {
+      this.renderer.setSize(width, height, false);
+    }
+  }
+
+  private loadSun(): Promise<THREE.Group> {
+    return new Promise((resolve, reject) => {
+      new GLTFLoader().load(
+        '/assets/models/sun.glb',
+        (gltf) => {
+          const sun = gltf.scene;
+
+          // FIX: Add basic material if model doesn't have textures
+          sun.traverse((child: any) => {
+            if (child.isMesh) {
+              // Add emissive material to make it glow
+              if (!child.material.emissive) {
+                child.material = new THREE.MeshStandardMaterial({
+                  color: 0xffaa00,
+                  emissive: 0xff8800,
+                  emissiveIntensity: 0.5
+                });
+              }
+            }
+          });
+
+          resolve(sun);
+        },
+        undefined,
+        (error) => reject(error)
+      );
     });
   }
 
-  private update(deltaTime: number): void {
-    this.cameraControls.updateControls();
+  private resize(): void {
+    const canvas = this.canvasRef.nativeElement;
+    if (canvas && this.renderer) {
+      this.updateCamera(canvas);
+    }
+  }
+
+  private animate = (): void => {
+    this.frameId = requestAnimationFrame(this.animate);
 
     if (this.sun1) {
       this.sun1.rotation.y += 0.0005;
       this.sun1.rotation.x += 0.0005;
     }
-  }
 
-  private render(scene: THREE.Scene, camera: THREE.PerspectiveCamera): void {
-    const renderer = this.threeEngine.getRenderer();
-    renderer.render(scene, camera);
-  }
-
-  private setupResizeObserver(): void {
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-
-        // Update engine size
-        this.threeEngine.setSize(width, height);
-
-        // Update camera aspect ratio
-        this.cameraControls.updateAspectRatio(width / height);
-      }
-    });
-
-    resizeObserver.observe(this.canvasRef.nativeElement);
-  }
+    if (this.scene && this.camera && this.renderer) {
+      this.renderer.render(this.scene, this.camera);
+    }
+  };
 
   ngOnDestroy(): void {
-    this.threeEngine.ngOnDestroy();
-    this.cameraControls.ngOnDestroy();
+    cancelAnimationFrame(this.frameId);
+    window.removeEventListener('resize', () => this.resize());
+    this.renderer?.dispose();
   }
 }
