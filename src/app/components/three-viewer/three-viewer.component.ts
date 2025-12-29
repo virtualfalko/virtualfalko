@@ -1,6 +1,7 @@
 import { Component, ElementRef, AfterViewInit, OnDestroy, ViewChild } from '@angular/core';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { SunObject } from '../objects/sun.object';
+import { Sun2Object } from '../objects/sun2.object';
 
 @Component({
   selector: 'app-three-viewer',
@@ -10,12 +11,13 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 })
 export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
-  private sun1: THREE.Group | null = null;
-  private sun2: THREE.Group | null = null;
   private scene: THREE.Scene | null = null;
   private camera: THREE.OrthographicCamera | null = null;
   private renderer: THREE.WebGLRenderer | null = null;
   private frameId: number = 0;
+
+  private sun1 = new SunObject({ x: -0.6, y: 0.1, z: 0 }, 0.3);
+  private sun2 = new Sun2Object({ x: 0.6, y: 0.4, z: 0 }, 0.3);
 
   async ngAfterViewInit(): Promise<void> {
     await this.init();
@@ -34,6 +36,7 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
 
     this.scene = new THREE.Scene();
 
+    // IMPORTANT: Add proper lighting for materials to show
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     this.scene.add(ambientLight);
 
@@ -43,18 +46,12 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
 
     this.updateCamera(canvas);
 
-    this.sun1 = await this.loadSun();
-    this.sun2 = await this.loadSun();
+    const sun1Model = await this.sun1.load();
+    const sun2Model = await this.sun2.load();
 
-    if (this.sun1 && this.sun2 && this.scene) {
-      this.scene.add(this.sun1);
-      this.scene.add(this.sun2);
-
-      this.sun1.scale.setScalar(0.3);
-      this.sun1.position.set(-0.6, 0.1, 0);
-
-      this.sun2.scale.setScalar(0.3);
-      this.sun2.position.set(0.6, 0.4, 0);
+    if (sun1Model && sun2Model && this.scene) {
+      this.scene.add(sun1Model);
+      this.scene.add(sun2Model);
     }
 
     this.animate();
@@ -64,9 +61,9 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
     const aspect = width / height;
+    const frustum = 1;
 
     if (!this.camera) {
-      const frustum = 1;
       if (aspect > 1) {
         this.camera = new THREE.OrthographicCamera(-frustum * aspect, frustum * aspect, frustum, -frustum, 0.1, 1000);
       } else {
@@ -74,7 +71,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
       }
       this.camera.position.z = 5;
     } else {
-      const frustum = 1;
       if (aspect > 1) {
         this.camera.left = -frustum * aspect;
         this.camera.right = frustum * aspect;
@@ -94,35 +90,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private loadSun(): Promise<THREE.Group> {
-    return new Promise((resolve, reject) => {
-      new GLTFLoader().load(
-        '/assets/models/sun.glb',
-        (gltf) => {
-          const sun = gltf.scene;
-
-          // FIX: Add basic material if model doesn't have textures
-          sun.traverse((child: any) => {
-            if (child.isMesh) {
-              // Add emissive material to make it glow
-              if (!child.material.emissive) {
-                child.material = new THREE.MeshStandardMaterial({
-                  color: 0xffaa00,
-                  emissive: 0xff8800,
-                  emissiveIntensity: 0.5
-                });
-              }
-            }
-          });
-
-          resolve(sun);
-        },
-        undefined,
-        (error) => reject(error)
-      );
-    });
-  }
-
   private resize(): void {
     const canvas = this.canvasRef.nativeElement;
     if (canvas && this.renderer) {
@@ -133,10 +100,8 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
   private animate = (): void => {
     this.frameId = requestAnimationFrame(this.animate);
 
-    if (this.sun1) {
-      this.sun1.rotation.y += 0.0005;
-      this.sun1.rotation.x += 0.0005;
-    }
+    this.sun1.update();
+    this.sun2.update();
 
     if (this.scene && this.camera && this.renderer) {
       this.renderer.render(this.scene, this.camera);
