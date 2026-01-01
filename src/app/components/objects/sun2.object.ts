@@ -10,7 +10,7 @@ export class Sun2Object {
   constructor(
     private position: { x: number; y: number; z: number } = { x: -0.7, y: -0.8, z: 0 },
     private scale: number = 0.1,
-    private onClick: () => void = () => console.log('Sun clicked!')
+    private onClick: () => void = () => {}
   ) {}
 
   async load(): Promise<THREE.Group> {
@@ -25,7 +25,6 @@ export class Sun2Object {
           this.model.position.set(this.position.x, this.position.y, this.position.z);
 
           this.makeClickable();
-
           resolve(this.model);
         },
         undefined,
@@ -35,25 +34,18 @@ export class Sun2Object {
   }
 
   update(): void {
-    if (this.model) {
-      this.model.rotation.y += 0.0000;
-      this.model.rotation.x += 0.0000;
+    if (!this.model) return;
 
-      if (this.isAnimating) {
-        this.animationTime += 0.08;
+    if (this.isAnimating) {
+      this.animationTime += 0.08;
+      const pulse = Math.sin(this.animationTime);
+      const scale = 1 + (pulse * 0.3);
+      this.model.scale.setScalar(this.originalScale * scale);
 
-        const progress = this.animationTime / Math.PI;
-        const pulse = Math.sin(this.animationTime);
-
-        const scale = 1 + (pulse * 0.3);
-
-        this.model.scale.setScalar(this.originalScale * scale);
-
-        if (this.animationTime >= Math.PI) {
-          this.isAnimating = false;
-          this.animationTime = 0;
-          this.model.scale.setScalar(this.originalScale);
-        }
+      if (this.animationTime >= Math.PI) {
+        this.isAnimating = false;
+        this.animationTime = 0;
+        this.model.scale.setScalar(this.originalScale);
       }
     }
   }
@@ -68,11 +60,10 @@ export class Sun2Object {
 
   private makeClickable(): void {
     if (!this.model) return;
-
     this.model.traverse((child: any) => {
       if (child.isMesh) {
-        child.userData['clickable'] = true;
-        child.userData['object'] = this;
+        child.userData.clickable = true;
+        child.userData.object = this;
       }
     });
   }

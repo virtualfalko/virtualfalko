@@ -1,4 +1,4 @@
-import { Component, ElementRef, AfterViewInit, OnDestroy, ViewChild } from '@angular/core';
+import { Component, ElementRef, AfterViewInit, OnDestroy, ViewChild, Output, EventEmitter } from '@angular/core';
 import * as THREE from 'three';
 import { SunObject } from '../objects/sun.object';
 import { Sun2Object } from '../objects/sun2.object';
@@ -13,6 +13,8 @@ import { BaloonObject } from '../objects/baloon.object';
 })
 export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+  @Output() tvZoomChange = new EventEmitter<boolean>();
+
   private scene: THREE.Scene | null = null;
   private camera: THREE.OrthographicCamera | null = null;
   private renderer: THREE.WebGLRenderer | null = null;
@@ -31,6 +33,11 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
 
     const canvas = this.canvasRef.nativeElement;
     canvas.addEventListener('click', (event) => this.onCanvasClick(event));
+
+    this.tv.onZoomToggle = (isZoomed: boolean) => {
+      this.handleTvZoom(isZoomed);
+      this.tvZoomChange.emit(isZoomed);
+    };
   }
 
   private async init(): Promise<void> {
@@ -59,7 +66,7 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
     const tvModel = await this.tv.load();
     const baloonModel = await this.baloon.load();
 
-    if (sun1Model && sun2Model && this.scene) {
+    if (sun1Model && sun2Model && tvModel && baloonModel && this.scene) {
       this.scene.add(sun1Model);
       this.scene.add(sun2Model);
       this.scene.add(tvModel);
@@ -67,6 +74,16 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
     }
 
     this.animate();
+  }
+
+  private handleTvZoom(isZoomed: boolean): void {
+    if (!this.scene) return;
+
+    if (isZoomed) {
+      this.tv.hideOtherObjects(this.scene);
+    } else {
+      this.tv.showOtherObjects(this.scene);
+    }
   }
 
   private onCanvasClick(event: MouseEvent): void {
@@ -85,8 +102,8 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
         const object = intersect.object;
 
         if (object.userData['clickable'] && object.userData['object']) {
-          const sunObject = object.userData['object'] as SunObject | Sun2Object;
-          sunObject.handleClick();
+          const clickedObject = object.userData['object'];
+          clickedObject.handleClick();
           break;
         }
       }
@@ -106,6 +123,7 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
         this.camera = new THREE.OrthographicCamera(-frustum, frustum, frustum / aspect, -frustum / aspect, 0.1, 1000);
       }
       this.camera.position.z = 5;
+      this.camera.updateProjectionMatrix();
     } else {
       if (aspect > 1) {
         this.camera.left = -frustum * aspect;
@@ -138,7 +156,7 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
 
     this.sun1.update();
     this.sun2.update();
-    this.tv.update();
+    this.tv.update(); // TV handles its own zoom animation
     this.baloon.update();
 
     if (this.scene && this.camera && this.renderer) {

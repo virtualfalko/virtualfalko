@@ -1,9 +1,10 @@
 <div class="min-h-screen bg-gradient-to-b from-blue-700 to-blue-100 flex flex-col items-center p-6 relative">
   <div class="absolute inset-0">
-    <app-three-viewer></app-three-viewer>
+    <app-three-viewer (tvZoomChange)="onTvZoomChanged($event)"></app-three-viewer>
   </div>
 
-  <div class="relative z-10 pt-16">
+  <!-- Content on top - hide when TV is zoomed -->
+  <div *ngIf="!isTvZoomed" class="relative z-10 pt-16">
     <div class="w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden mb-12">
       <img src="Falko.png" alt="Falko" class="w-full h-full object-cover">
     </div>
