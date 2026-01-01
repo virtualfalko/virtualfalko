@@ -8,9 +8,9 @@ export class SunObject {
   private animationTime: number = 0;
 
   constructor(
-    private position: { x: number; y: number; z: number } = { x: -0.7, y: 0.8, z: 0 },
+    private position: { x: number; y: number; z: number } = { x: -0.75, y: 0.9, z: 0 },
     private scale: number = 0.3,
-    private onClick: () => void = () => console.log('Sun clicked!')
+    private onClick: () => void = () => console.log('Sun')
   ) {}
 
   async load(): Promise<THREE.Group> {
@@ -45,7 +45,7 @@ export class SunObject {
         const progress = this.animationTime / Math.PI;
         const pulse = Math.sin(this.animationTime);
 
-        const scale = 1 + (pulse * 0.3);
+        const scale = 1 + (pulse * 0.2);
 
         this.model.scale.setScalar(this.originalScale * scale);
 

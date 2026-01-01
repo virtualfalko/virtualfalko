@@ -2,6 +2,8 @@ import { Component, ElementRef, AfterViewInit, OnDestroy, ViewChild } from '@ang
 import * as THREE from 'three';
 import { SunObject } from '../objects/sun.object';
 import { Sun2Object } from '../objects/sun2.object';
+import { TvObject } from '../objects/tv.object';
+import { BaloonObject } from '../objects/baloon.object';
 
 @Component({
   selector: 'app-three-viewer',
@@ -20,6 +22,8 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
 
   private sun1 = new SunObject();
   private sun2 = new Sun2Object();
+  private tv = new TvObject();
+  private baloon = new BaloonObject();
 
   async ngAfterViewInit(): Promise<void> {
     await this.init();
@@ -52,10 +56,14 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
 
     const sun1Model = await this.sun1.load();
     const sun2Model = await this.sun2.load();
+    const tvModel = await this.tv.load();
+    const baloonModel = await this.baloon.load();
 
     if (sun1Model && sun2Model && this.scene) {
       this.scene.add(sun1Model);
       this.scene.add(sun2Model);
+      this.scene.add(tvModel);
+      this.scene.add(baloonModel);
     }
 
     this.animate();
@@ -76,7 +84,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
       for (const intersect of intersects) {
         const object = intersect.object;
 
-        // FIX: Use bracket notation for indexed properties
         if (object.userData['clickable'] && object.userData['object']) {
           const sunObject = object.userData['object'] as SunObject | Sun2Object;
           sunObject.handleClick();
@@ -131,6 +138,8 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
 
     this.sun1.update();
     this.sun2.update();
+    this.tv.update();
+    this.baloon.update();
 
     if (this.scene && this.camera && this.renderer) {
       this.renderer.render(this.scene, this.camera);

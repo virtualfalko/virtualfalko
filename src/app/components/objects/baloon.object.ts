@@ -1,26 +1,27 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-export class Sun2Object {
+export class BaloonObject {
   private model: THREE.Group | null = null;
   private originalScale: number = 1;
   private isAnimating: boolean = false;
   private animationTime: number = 0;
 
   constructor(
-    private position: { x: number; y: number; z: number } = { x: -0.7, y: -0.8, z: 0 },
-    private scale: number = 0.1,
-    private onClick: () => void = () => console.log('Sun clicked!')
+    private position: { x: number; y: number; z: number } = { x: 0.7, y: -0.1, z: 0 },
+    private scale: number = 0.5,
+    private onClick: () => void = () => console.log('Baloon clicked!')
   ) {}
 
   async load(): Promise<THREE.Group> {
     return new Promise((resolve, reject) => {
       new GLTFLoader().load(
-        '/assets/models/sun.glb',
+        '/assets/models/baloon.glb',
         (gltf) => {
           this.model = gltf.scene;
           this.originalScale = this.scale;
 
+          this.model.rotation.y = -2.2000;
           this.model.scale.setScalar(this.scale);
           this.model.position.set(this.position.x, this.position.y, this.position.z);
 
