@@ -156,7 +156,7 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
 
     this.sun1.update();
     this.sun2.update();
-    this.tv.update(); // TV handles its own zoom animation
+    this.tv.update();
     this.baloon.update();
 
     if (this.scene && this.camera && this.renderer) {

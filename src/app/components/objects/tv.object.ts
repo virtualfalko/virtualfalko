@@ -1,3 +1,4 @@
+// tv.object.ts - UPDATED WITH CORRECT METHOD
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
@@ -9,7 +10,7 @@ export class TvObject {
   private isZoomed: boolean = false;
   private isAnimatingZoom: boolean = false;
   private zoomProgress: number = 0;
-  private zoomSpeed: number = 0.05;
+  private zoomSpeed: number = 0.02;
   private zoomTargetScale: number = 0.8;
   private zoomTargetPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 1);
   private zoomTargetRotation: THREE.Euler = new THREE.Euler(0, -1.6, 0);
