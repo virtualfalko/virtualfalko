@@ -1,16 +1,17 @@
-// tv.object.ts - UPDATED WITH CORRECT METHOD
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { ComputerScreenObject } from './computer-screen.object';
 
 export class TvObject {
   private model: THREE.Group | null = null;
+  private screen: ComputerScreenObject;
   private originalScale: number = 1;
   private originalPosition: THREE.Vector3 = new THREE.Vector3();
   private originalRotation: THREE.Euler = new THREE.Euler();
   private isZoomed: boolean = false;
   private isAnimatingZoom: boolean = false;
   private zoomProgress: number = 0;
-  private zoomSpeed: number = 0.02;
+  private zoomSpeed: number = 0.05;
   private zoomTargetScale: number = 0.8;
   private zoomTargetPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 1);
   private zoomTargetRotation: THREE.Euler = new THREE.Euler(0, -1.6, 0);
@@ -18,11 +19,14 @@ export class TvObject {
   private originalVisibility: Map<THREE.Object3D, boolean> = new Map();
 
   public onZoomToggle: ((isZoomed: boolean) => void) | null = null;
+  public onScreenToggle: ((visible: boolean) => void) | null = null;
 
   constructor(
     private position: { x: number; y: number; z: number } = { x: 0.7, y: 0.2, z: 0 },
     private scale: number = 0.15
-  ) {}
+  ) {
+    this.screen = new ComputerScreenObject();
+  }
 
   async load(): Promise<THREE.Group> {
     return new Promise((resolve, reject) => {
@@ -48,8 +52,19 @@ export class TvObject {
     });
   }
 
+  async createScreen(scene: THREE.Scene): Promise<void> {
+    await this.screen.create();
+    const screenObjects = this.screen.getObjects();
+    if (screenObjects && scene) {
+      screenObjects.forEach(obj => {
+        scene.add(obj);
+      });
+    }
+  }
+
   update(): void {
     this.updateZoomAnimation();
+    this.screen.update();
   }
 
   handleClick(): void {
@@ -58,13 +73,31 @@ export class TvObject {
     }
   }
 
+  handleIconClick(): void {
+    this.screen.handleIconClick();
+  }
+
+  getIcon(): THREE.Mesh | null {
+    return this.screen.getIcon();
+  }
+
   private toggleZoom(): void {
     this.isZoomed = !this.isZoomed;
     this.isAnimatingZoom = true;
     this.zoomProgress = 0;
 
+    if (this.isZoomed) {
+      this.screen.show();
+    } else {
+      this.screen.hide();
+    }
+
     if (this.onZoomToggle) {
       this.onZoomToggle(this.isZoomed);
+    }
+
+    if (this.onScreenToggle) {
+      this.onScreenToggle(this.isZoomed);
     }
   }
 
@@ -118,8 +151,16 @@ export class TvObject {
   hideOtherObjects(scene: THREE.Scene): void {
     if (!scene) return;
 
+    // Get all screen objects (screen + icon)
+    const screenObjects = this.screen.getObjects();
+
     scene.children.forEach(child => {
-      if (child !== this.model && !(child instanceof THREE.Light) && !(child instanceof THREE.Camera)) {
+      // Don't hide: TV model, screen objects, lights, or camera
+      const isScreenObject = screenObjects.some(obj => obj === child);
+      const isLight = child instanceof THREE.Light;
+      const isCamera = child instanceof THREE.Camera;
+
+      if (child !== this.model && !isScreenObject && !isLight && !isCamera) {
         this.originalVisibility.set(child, child.visible);
         child.visible = false;
       }
@@ -129,8 +170,13 @@ export class TvObject {
   showOtherObjects(scene: THREE.Scene): void {
     if (!scene) return;
 
+    const screenObjects = this.screen.getObjects();
+
     scene.children.forEach(child => {
-      if (child !== this.model) {
+      // Don't restore visibility for screen objects
+      const isScreenObject = screenObjects.some(obj => obj === child);
+
+      if (child !== this.model && !isScreenObject) {
         const wasVisible = this.originalVisibility.get(child);
         if (wasVisible !== undefined) {
           child.visible = wasVisible;
@@ -143,6 +189,10 @@ export class TvObject {
 
   getZoomState(): boolean {
     return this.isZoomed;
+  }
+
+  getScreen(): ComputerScreenObject {
+    return this.screen;
   }
 
   private makeClickable(): void {

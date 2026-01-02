@@ -4,6 +4,7 @@ import { SunObject } from '../objects/sun.object';
 import { Sun2Object } from '../objects/sun2.object';
 import { TvObject } from '../objects/tv.object';
 import { BaloonObject } from '../objects/baloon.object';
+import { ComputerScreenObject } from '../objects/computer-screen.object';
 
 @Component({
   selector: 'app-three-viewer',
@@ -14,6 +15,7 @@ import { BaloonObject } from '../objects/baloon.object';
 export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
   @Output() tvZoomChange = new EventEmitter<boolean>();
+  @Output() screenVisibleChange = new EventEmitter<boolean>();
 
   private scene: THREE.Scene | null = null;
   private camera: THREE.OrthographicCamera | null = null;
@@ -38,6 +40,10 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
       this.handleTvZoom(isZoomed);
       this.tvZoomChange.emit(isZoomed);
     };
+
+    this.tv.onScreenToggle = (visible: boolean) => {
+      this.screenVisibleChange.emit(visible);
+    };
   }
 
   private async init(): Promise<void> {
@@ -61,16 +67,20 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
 
     this.updateCamera(canvas);
 
-    const sun1Model = await this.sun1.load();
-    const sun2Model = await this.sun2.load();
-    const tvModel = await this.tv.load();
-    const baloonModel = await this.baloon.load();
+    const [sun1Model, sun2Model, tvModel, baloonModel] = await Promise.all([
+      this.sun1.load(),
+      this.sun2.load(),
+      this.tv.load(),
+      this.baloon.load()
+    ]);
 
     if (sun1Model && sun2Model && tvModel && baloonModel && this.scene) {
       this.scene.add(sun1Model);
       this.scene.add(sun2Model);
       this.scene.add(tvModel);
       this.scene.add(baloonModel);
+
+      await this.tv.createScreen(this.scene);
     }
 
     this.animate();
@@ -101,9 +111,18 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
       for (const intersect of intersects) {
         const object = intersect.object;
 
-        if (object.userData['clickable'] && object.userData['object']) {
-          const clickedObject = object.userData['object'];
-          clickedObject.handleClick();
+        if ((object.userData as any)['clickable'] && (object.userData as any)['object']) {
+          const clickedObject = (object.userData as any)['object'];
+
+          if (clickedObject instanceof ComputerScreenObject) {
+            if ((object.userData as any)['isIcon']) {
+              clickedObject.handleIconClick();
+            } else if ((object.userData as any)['isBackground']) {
+              clickedObject.handleBackgroundClick(); // FIXED: changed from handleScreenClick()
+            }
+          } else {
+            clickedObject.handleClick();
+          }
           break;
         }
       }
@@ -156,7 +175,7 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
 
     this.sun1.update();
     this.sun2.update();
-    this.tv.update();
+    this.tv.update(); // Updates both TV and screen
     this.baloon.update();
 
     if (this.scene && this.camera && this.renderer) {
