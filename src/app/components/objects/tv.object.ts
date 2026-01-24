@@ -60,25 +60,17 @@ export class TvObject {
         scene.add(obj);
       });
     }
+    this.screen.addPopupWindowsToScene(scene);
   }
 
   update(): void {
     this.updateZoomAnimation();
-    this.screen.update();
   }
 
   handleClick(): void {
     if (!this.isAnimatingZoom) {
       this.toggleZoom();
     }
-  }
-
-  handleIconClick(): void {
-    this.screen.handleIconClick();
-  }
-
-  getIcon(): THREE.Mesh | null {
-    return this.screen.getIcon();
   }
 
   private toggleZoom(): void {
@@ -151,11 +143,9 @@ export class TvObject {
   hideOtherObjects(scene: THREE.Scene): void {
     if (!scene) return;
 
-    // Get all screen objects (screen + icon)
     const screenObjects = this.screen.getObjects();
 
     scene.children.forEach(child => {
-      // Don't hide: TV model, screen objects, lights, or camera
       const isScreenObject = screenObjects.some(obj => obj === child);
       const isLight = child instanceof THREE.Light;
       const isCamera = child instanceof THREE.Camera;
@@ -173,7 +163,6 @@ export class TvObject {
     const screenObjects = this.screen.getObjects();
 
     scene.children.forEach(child => {
-      // Don't restore visibility for screen objects
       const isScreenObject = screenObjects.some(obj => obj === child);
 
       if (child !== this.model && !isScreenObject) {

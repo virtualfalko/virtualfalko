@@ -1,168 +1,226 @@
 import * as THREE from 'three';
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
+import type { Font } from 'three/examples/jsm/loaders/FontLoader.js';
+import { IconObject, IconConfig } from './icon.interface';
+import { PopupWindowObject } from './windows/popup-window.object';
+import { PopupWindow2Object } from './windows/popup-window2.object';
 
 export class ComputerScreenObject {
   private background: THREE.Mesh | null = null;
-  private icon: THREE.Mesh | null = null;
-  private isVisible = false;
-  private animationProgress = 0;
-  private animationSpeed = 0.08;
-  private isAnimating = false;
+  private icons: Map<string, IconObject> = new Map();
+  private popupWindows: Map<string, any> = new Map();
   private textureLoader: THREE.TextureLoader;
+  private font: Font | null = null;
+  private windowGroup: THREE.Group = new THREE.Group();
+
+  private iconConfigs: IconConfig[] = [
+    {
+      id: 'text-icon',
+      texturePath: '/assets/computer/Icons/texticon.png',
+      text: 'Text',
+      position: { x: -0.6, y: 0.34 },
+      size: 0.08,
+      windowClass: PopupWindowObject
+    },
+    {
+      id: 'text-icon2',
+      texturePath: '/assets/computer/Icons/texticon.png',
+      text: 'Text2',
+      position: { x: -0.6, y: 0.20 },
+      size: 0.08,
+      windowClass: PopupWindow2Object
+    },
+  ];
 
   constructor(
-    private position = { x: 0, y: 0.018, z: 1.5 },
+    private position = { x: 0, y: 0.018, z: 2 },
     private width = 1.3,
     private height = 0.9
   ) {
     this.textureLoader = new THREE.TextureLoader();
+    this.windowGroup.position.set(this.position.x, this.position.y, this.position.z);
   }
 
   async create(): Promise<void> {
     return new Promise((resolve) => {
       this.textureLoader.load(
         '/assets/computer/background.png',
-        (texture) => {
+        async (texture: THREE.Texture) => {
           const geometry = new THREE.PlaneGeometry(this.width, this.height);
-          texture.wrapS = THREE.RepeatWrapping;
-          texture.wrapT = THREE.RepeatWrapping;
-          texture.repeat.set(1, 1);
-
           const material = new THREE.MeshBasicMaterial({
             map: texture,
-            side: THREE.DoubleSide,
             transparent: true
           });
-
           this.background = new THREE.Mesh(geometry, material);
           this.background.position.set(this.position.x, this.position.y, this.position.z);
-          this.background.rotation.y = 0;
-          this.background.scale.set(0, 0, 0);
-
           this.makeBackgroundClickable();
-          this.createIcon();
 
+          await this.loadFont();
+          await this.createIcons();
+          this.hide();
           resolve();
         },
         undefined,
-        () => {
-          this.createFallbackBackground();
-          resolve();
-        }
+        () => resolve()
       );
     });
   }
 
-  private createFallbackBackground(): void {
-    const geometry = new THREE.PlaneGeometry(this.width, this.height);
-    const material = new THREE.MeshBasicMaterial({
-      color: 0x1a1a2e,
-      side: THREE.DoubleSide
-    });
+  private async createIcons(): Promise<void> {
+    if (!this.font) return;
 
-    this.background = new THREE.Mesh(geometry, material);
-    this.background.position.set(this.position.x, this.position.y, this.position.z);
-    this.background.rotation.y = 0;
-    this.background.scale.set(0, 0, 0);
+    for (const config of this.iconConfigs) {
+      const icon = new IconObject(config, this.font, this.handleIconClick.bind(this));
+      const iconObject = icon.getObject();
+      iconObject.position.set(
+        this.position.x + config.position.x,
+        this.position.y + config.position.y,
+        this.position.z
+      );
 
-    this.makeBackgroundClickable();
-    this.createIcon();
+      iconObject.traverse((child: any) => {
+        if (child.isMesh) {
+          child.userData['clickable'] = true;
+          child.userData['object'] = this;
+          child.userData['isIcon'] = true;
+        }
+      });
+
+      this.icons.set(config.id, icon);
+      this.windowGroup.add(iconObject);
+      await this.createPopupWindow(config);
+    }
   }
 
-  private createIcon(): void {
-    const iconSize = 0.08;
-    const geometry = new THREE.BoxGeometry(iconSize, iconSize, iconSize * 0.2);
-    const material = new THREE.MeshBasicMaterial({ color: 0x4a90e2 });
+  private async createPopupWindow(config: IconConfig): Promise<void> {
+    const WindowClass = config.windowClass;
 
-    this.icon = new THREE.Mesh(geometry, material);
-    this.icon.position.set(this.position.x + 0.5, this.position.y + 0.35, this.position.z + 0.01);
-    this.icon.rotation.y = 0;
-    this.icon.scale.set(0, 0, 0);
+    const window = new WindowClass({
+      x: this.position.x + config.position.x,
+      y: this.position.y + config.position.y,
+      z: this.position.z + 2
+    });
 
-    this.makeIconClickable();
+    await window.loadFont();
+    window.hide();
+    window.getObject().visible = false;
+
+    window.getObject().traverse((child: any) => {
+      if (child.isMesh) {
+        child.renderOrder = 2;
+      }
+    });
+
+    this.popupWindows.set(config.id, window);
+
+    const icon = this.icons.get(config.id);
+    if (icon) {
+      icon.setAssociatedWindow(window);
+    }
+  }
+
+  handleIconClick(clickedIcon: IconObject): void {
+    const iconId = clickedIcon.getId();
+    const window = this.popupWindows.get(iconId);
+
+    if (window) {
+      if (window.isWindowVisible()) {
+        console.log('Hiding window:', iconId);
+        window.hide();
+      } else {
+        console.log('Showing window:', iconId);
+        window.show();
+        window.getObject().visible = true;
+      }
+    }
+  }
+
+  handleIconClickByObject(clickedObject: THREE.Object3D): void {
+    this.icons.forEach((icon) => {
+      const iconObj = icon.getObject();
+      if (clickedObject === iconObj ||
+        iconObj.children.includes(clickedObject) ||
+        clickedObject.parent === iconObj) {
+        console.log('Icon clicked:', icon.getId());
+        icon.handleClick();
+        return;
+      }
+    });
+  }
+
+  addPopupWindowsToScene(scene: THREE.Scene): void {
+    this.popupWindows.forEach(window => {
+      scene.add(window.getObject());
+      window.getObject().visible = false;
+    });
+  }
+
+  handleBackgroundClick(): void {
+  }
+
+  show(): void {
+    if (this.background) {
+      this.background.scale.set(1, 1, 1);
+      this.background.visible = true;
+    }
+
+    this.windowGroup.scale.set(1, 1, 1);
+    this.windowGroup.visible = true;
+
+    this.popupWindows.forEach(window => {
+      window.hide();
+      window.getObject().visible = false;
+    });
+  }
+
+  hide(): void {
+    if (this.background) {
+      this.background.scale.set(0, 0, 0);
+      this.background.visible = false;
+    }
+
+    this.windowGroup.scale.set(0, 0, 0);
+    this.windowGroup.visible = false;
+
+    this.popupWindows.forEach(window => {
+      window.hide();
+      window.getObject().visible = false;
+      window.getObject().scale.set(0, 0, 0);
+    });
+  }
+
+  private async loadFont(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const loader = new FontLoader();
+      loader.load(
+        '/assets/fonts/helvetiker_regular.typeface.json',
+        (font: Font) => {
+          this.font = font;
+          resolve();
+        },
+        undefined,
+        () => reject(new Error('Failed to load font'))
+      );
+    });
   }
 
   private makeBackgroundClickable(): void {
     if (!this.background) return;
-
-    (this.background.userData as any)['clickable'] = true;
-    (this.background.userData as any)['object'] = this;
-    (this.background.userData as any)['isBackground'] = true;
-  }
-
-  private makeIconClickable(): void {
-    if (!this.icon) return;
-
-    (this.icon.userData as any)['clickable'] = true;
-    (this.icon.userData as any)['object'] = this;
-    (this.icon.userData as any)['isIcon'] = true;
-  }
-
-  handleBackgroundClick(): void {}
-
-  handleIconClick(): void {
-    if (this.icon && this.icon.material) {
-      const material = this.icon.material as THREE.MeshBasicMaterial;
-      const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
-      material.color.setHex(randomColor);
-    }
-  }
-
-  show(): void {
-    if ((!this.background && !this.icon) || this.isAnimating) return;
-
-    this.isVisible = true;
-    this.isAnimating = true;
-    this.animationProgress = 0;
-  }
-
-  hide(): void {
-    if ((!this.background && !this.icon) || this.isAnimating) return;
-
-    this.isVisible = false;
-    this.isAnimating = true;
-    this.animationProgress = 0;
+    this.background.userData['clickable'] = true;
+    this.background.userData['object'] = this;
+    this.background.userData['isScreenBackground'] = true;
   }
 
   update(): void {
-    if (this.isAnimating) {
-      this.animationProgress = Math.min(this.animationProgress + this.animationSpeed, 1);
-
-      const easing = (t: number) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      const easedProgress = easing(this.animationProgress);
-
-      if (this.isVisible) {
-        const scale = THREE.MathUtils.lerp(0, 1, easedProgress);
-        if (this.background) this.background.scale.set(scale, scale, scale);
-        if (this.icon) this.icon.scale.set(scale, scale, scale);
-      } else {
-        const scale = THREE.MathUtils.lerp(1, 0, easedProgress);
-        if (this.background) this.background.scale.set(scale, scale, scale);
-        if (this.icon) this.icon.scale.set(scale, scale, scale);
-      }
-
-      if (this.animationProgress >= 1) {
-        this.isAnimating = false;
-      }
-    }
+    this.popupWindows.forEach(window => {
+      window.update();
+    });
   }
 
   getObjects(): THREE.Object3D[] {
     const objects: THREE.Object3D[] = [];
     if (this.background) objects.push(this.background);
-    if (this.icon) objects.push(this.icon);
+    objects.push(this.windowGroup);
     return objects;
-  }
-
-  getBackground(): THREE.Mesh | null {
-    return this.background;
-  }
-
-  getIcon(): THREE.Mesh | null {
-    return this.icon;
-  }
-
-  isBackgroundVisible(): boolean {
-    return this.isVisible;
   }
 }
