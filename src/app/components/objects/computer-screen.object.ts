@@ -3,7 +3,7 @@ import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import type { Font } from 'three/examples/jsm/loaders/FontLoader.js';
 import { IconObject, IconConfig } from './icon.interface';
 import { PopupWindowObject } from './windows/popup-window.object';
-import { PopupWindow2Object } from './windows/popup-window2.object';
+import { AboutMeWindowObject } from './windows/aboutme-window.object';
 
 export class ComputerScreenObject {
   private background: THREE.Mesh | null = null;
@@ -17,10 +17,10 @@ export class ComputerScreenObject {
     {
       id: 'text-icon',
       texturePath: '/assets/computer/Icons/texticon.png',
-      text: 'Text',
+      text: 'About me',
       position: { x: -0.6, y: 0.34 },
       size: 0.08,
-      windowClass: PopupWindowObject
+      windowClass: AboutMeWindowObject,
     },
     {
       id: 'text-icon2',
@@ -28,7 +28,7 @@ export class ComputerScreenObject {
       text: 'Text2',
       position: { x: -0.6, y: 0.20 },
       size: 0.08,
-      windowClass: PopupWindow2Object
+      windowClass: PopupWindowObject
     },
   ];
 
@@ -152,6 +152,14 @@ export class ComputerScreenObject {
     this.popupWindows.forEach(window => {
       scene.add(window.getObject());
       window.getObject().visible = false;
+    });
+  }
+
+  setCamera(camera: THREE.Camera): void {
+    this.popupWindows.forEach(window => {
+      if (window.setCamera) {
+        window.setCamera(camera);
+      }
     });
   }
 

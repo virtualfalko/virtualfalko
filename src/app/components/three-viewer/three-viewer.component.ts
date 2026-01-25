@@ -7,7 +7,7 @@ import { TvObject } from '../objects/tv.object';
 import { BaloonObject } from '../objects/baloon.object';
 import { ComputerScreenObject } from '../objects/computer-screen.object';
 import { PopupWindowObject } from '../objects/windows/popup-window.object';
-import { PopupWindow2Object } from '../objects/windows/popup-window2.object';
+import { AboutMeWindowObject } from '../objects/windows/aboutme-window.object';
 
 @Component({
   selector: 'app-three-viewer',
@@ -79,6 +79,7 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
     this.scene!.add(directionalLight);
   }
 
+
   private async loadAndAddObjects(): Promise<void> {
     const objects = await Promise.all([
       this.sun1.load(),
@@ -90,6 +91,15 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
     if (objects.every(obj => obj) && this.scene) {
       objects.forEach(model => this.scene!.add(model!));
       await this.tv.createScreen(this.scene);
+
+      if (this.camera) {
+        this.tv.getScreen().getObjects().forEach(obj => {
+          const userData = obj.userData as any;
+          if (userData && userData['object'] && userData['object'].setCamera) {
+            userData['object'].setCamera(this.camera!);
+          }
+        });
+      }
     }
   }
 
@@ -167,17 +177,26 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
 
     const intersects = this.raycaster.intersectObjects(this.scene.children, true);
 
-    this.handleObjectIntersection(intersects, (targetObject, object) => {
-      if ((targetObject instanceof PopupWindowObject || targetObject instanceof PopupWindow2Object) && object.userData['isTitleBar']) {
-        this.isMouseDown = true;
-        this.draggingWindow = targetObject;
+    intersects.sort((a, b) => a.distance - b.distance);
 
-        const dragCoords = this.calculateMouseCoordinates(event, 'drag');
-        this.draggingWindow.startDrag(dragCoords.x, dragCoords.y);
-        return true;
+    for (const intersect of intersects) {
+      const object = intersect.object;
+      if (object.userData['clickable'] && object.userData['object']) {
+        const targetObject = object.userData['object'];
+
+        if ((targetObject instanceof PopupWindowObject ||
+            targetObject instanceof AboutMeWindowObject) &&
+          object.userData['isTitleBar']) {
+
+          this.isMouseDown = true;
+          this.draggingWindow = targetObject;
+
+          const dragCoords = this.calculateMouseCoordinates(event, 'drag');
+          this.draggingWindow.startDrag(dragCoords.x, dragCoords.y);
+          return;
+        }
       }
-      return false;
-    });
+    }
   }
 
   private onMouseMove(event: MouseEvent): void {
@@ -217,34 +236,43 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
 
     const intersects = this.raycaster.intersectObjects(this.scene.children, true);
 
-    this.handleObjectIntersection(intersects, (targetObject, object) => {
-      if (targetObject instanceof IconObject) {
-        targetObject.handleClick();
-        return true;
-      }
+    intersects.sort((a, b) => a.distance - b.distance);
 
-      if ((targetObject instanceof PopupWindowObject || targetObject instanceof PopupWindow2Object) && object.userData['isCloseButton']) {
-        targetObject.handlePopupClick(object);
-        return true;
-      }
+    for (const intersect of intersects) {
+      const object = intersect.object;
+      if (object.userData['clickable'] && object.userData['object']) {
+        const targetObject = object.userData['object'];
 
-      if (targetObject instanceof ComputerScreenObject) {
-        if (object.userData['isIcon']) {
-          targetObject.handleIconClickByObject(object);
-          return true;
-        } else if (object.userData['isScreenBackground']) {
-          targetObject.handleBackgroundClick();
-          return true;
+        if (targetObject instanceof PopupWindowObject ||
+          targetObject instanceof AboutMeWindowObject) {
+
+          if (object.userData['isCloseButton']) {
+            targetObject.handlePopupClick(object);
+          }
+          return;
+        }
+
+        if (targetObject instanceof IconObject) {
+          targetObject.handleClick();
+          return;
+        }
+
+        if (targetObject instanceof ComputerScreenObject) {
+          if (object.userData['isIcon']) {
+            targetObject.handleIconClickByObject(object);
+            return;
+          } else if (object.userData['isScreenBackground']) {
+            targetObject.handleBackgroundClick();
+            return;
+          }
+        }
+
+        if (targetObject.handleClick) {
+          targetObject.handleClick();
+          return;
         }
       }
-
-      if (targetObject.handleClick) {
-        targetObject.handleClick();
-        return true;
-      }
-
-      return false;
-    });
+    }
   }
 
   private updateCamera(canvas: HTMLCanvasElement): void {

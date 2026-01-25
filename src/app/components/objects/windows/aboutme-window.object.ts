@@ -3,7 +3,7 @@ import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import type { Font } from 'three/examples/jsm/loaders/FontLoader.js';
 
-export class PopupWindow2Object {
+export class AboutMeWindowObject {
   private windowGroup: THREE.Group;
   private background!: THREE.Mesh;
   private closeButton!: THREE.Mesh;
@@ -17,6 +17,8 @@ export class PopupWindow2Object {
   private dragStartPosition = new THREE.Vector2();
   private windowStartPosition = new THREE.Vector3();
 
+  private camera: THREE.Camera | null = null;
+
   constructor(
     private position: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 },
   ) {
@@ -24,13 +26,17 @@ export class PopupWindow2Object {
     this.createWindow();
   }
 
+  setCamera(camera: THREE.Camera): void {
+    this.camera = camera;
+  }
+
   private createWindow(): void {
     const backgroundGeometry = new THREE.PlaneGeometry(0.6, 0.4);
     const backgroundMaterial = new THREE.MeshBasicMaterial({
       color: 0x2c3e50,
       side: THREE.DoubleSide,
-      transparent: false,
-      opacity: 1
+      transparent: true,
+      opacity: 0.95
     });
     this.background = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
     this.background.position.set(0, 0, 0);
@@ -48,7 +54,8 @@ export class PopupWindow2Object {
     const titleBarGeometry = new THREE.PlaneGeometry(0.6, 0.06);
     const titleBarMaterial = new THREE.MeshBasicMaterial({
       color: 0x3498db,
-      transparent: false
+      transparent: true,
+      opacity: 0.9
     });
     this.titleBar = new THREE.Mesh(titleBarGeometry, titleBarMaterial);
     this.titleBar.position.set(0, 0.17, 0);
@@ -61,7 +68,7 @@ export class PopupWindow2Object {
   }
 
   private createText(font: Font): void {
-    const textGeometry = new TextGeometry('TEXT WINDOW 2', {
+    const textGeometry = new TextGeometry('Popup window', {
       font: font,
       size: 0.04,
       depth: 0.01,
@@ -81,10 +88,11 @@ export class PopupWindow2Object {
     const closeButtonGeometry = new THREE.PlaneGeometry(0.06, 0.06);
     const closeButtonMaterial = new THREE.MeshBasicMaterial({
       color: 0xff6b6b,
-      transparent: true
+      transparent: true,
+      opacity: 0.9
     });
     this.closeButton = new THREE.Mesh(closeButtonGeometry, closeButtonMaterial);
-    this.closeButton.position.set(0.25, 0.17, 0);
+    this.closeButton.position.set(0.25, 0.17, 0.1);
 
     this.closeButton.userData['clickable'] = true;
     this.closeButton.userData['object'] = this;
@@ -104,6 +112,7 @@ export class PopupWindow2Object {
     this.isVisible = true;
     this.isAnimating = true;
     this.animationProgress = 0;
+    this.windowGroup.visible = true;
   }
 
   hide(): void {
@@ -120,7 +129,7 @@ export class PopupWindow2Object {
   }
 
   startDrag(mouseX: number, mouseY: number): void {
-    if (!this.isVisible) return;
+    if (!this.isVisible || !this.camera) return;
 
     this.isDragging = true;
     this.dragStartPosition.set(mouseX, mouseY);
@@ -128,13 +137,18 @@ export class PopupWindow2Object {
   }
 
   updateDrag(mouseX: number, mouseY: number): void {
-    if (!this.isDragging) return;
+    if (!this.isDragging || !this.camera) return;
 
-    const deltaX = (mouseX - this.dragStartPosition.x) * 2;
-    const deltaY = (mouseY - this.dragStartPosition.y) * -2.5;
+    if (this.camera instanceof THREE.OrthographicCamera) {
+      const frustumWidth = this.camera.right - this.camera.left;
+      const frustumHeight = this.camera.top - this.camera.bottom;
 
-    this.windowGroup.position.x = this.windowStartPosition.x + deltaX;
-    this.windowGroup.position.y = this.windowStartPosition.y + deltaY;
+      const deltaX = (mouseX - this.dragStartPosition.x) * frustumWidth;
+      const deltaY = (mouseY - this.dragStartPosition.y) * frustumHeight;
+
+      this.windowGroup.position.x = this.windowStartPosition.x + deltaX;
+      this.windowGroup.position.y = this.windowStartPosition.y - deltaY; // Invert Y for Three.js coordinate system
+    }
   }
 
   stopDrag(): void {
