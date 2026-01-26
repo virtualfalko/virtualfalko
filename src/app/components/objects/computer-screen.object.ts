@@ -95,11 +95,19 @@ export class ComputerScreenObject {
   private async createPopupWindow(config: IconConfig): Promise<void> {
     const WindowClass = config.windowClass;
 
+    // Check if it's an AboutMeWindow to enable debug
+    const enableDebug = WindowClass.name === 'AboutMeWindowObject';
+
     const window = new WindowClass({
-      x: this.position.x + config.position.x,
-      y: this.position.y + config.position.y,
-      z: this.position.z + 2
-    });
+        x: this.position.x + config.position.x,
+        y: this.position.y + config.position.y,
+        z: this.position.z + 2
+      },
+      0.6, // width
+      0.4, // height
+      '/assets/computer/window.png', // texture path
+      enableDebug // debug mode
+    );
 
     await window.loadFont();
     window.hide();
