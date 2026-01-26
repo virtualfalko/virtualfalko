@@ -184,16 +184,41 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
       if (object.userData['clickable'] && object.userData['object']) {
         const targetObject = object.userData['object'];
 
-        if ((targetObject instanceof PopupWindowObject ||
-            targetObject instanceof AboutMeWindowObject) &&
-          object.userData['isTitleBar']) {
+        // Check for AboutMeWindowObject specifically
+        if (targetObject instanceof AboutMeWindowObject) {
+          // Check for resize handle
+          if (object.userData['isResizeHandle']) {
+            this.isMouseDown = true;
+            this.draggingWindow = targetObject;
 
-          this.isMouseDown = true;
-          this.draggingWindow = targetObject;
+            const dragCoords = this.calculateMouseCoordinates(event, 'drag');
+            const edge = object.userData['edge'];
+            targetObject.startResize(dragCoords.x, dragCoords.y, edge);
+            return;
+          }
 
-          const dragCoords = this.calculateMouseCoordinates(event, 'drag');
-          this.draggingWindow.startDrag(dragCoords.x, dragCoords.y);
-          return;
+          // Check for title bar drag
+          if (object.userData['isTitleBar']) {
+            this.isMouseDown = true;
+            this.draggingWindow = targetObject;
+
+            const dragCoords = this.calculateMouseCoordinates(event, 'drag');
+            targetObject.startDrag(dragCoords.x, dragCoords.y);
+            return;
+          }
+        }
+
+        // Handle PopupWindowObject (non-resizable)
+        if (targetObject instanceof PopupWindowObject) {
+          // Only title bar drag for PopupWindowObject
+          if (object.userData['isTitleBar']) {
+            this.isMouseDown = true;
+            this.draggingWindow = targetObject;
+
+            const dragCoords = this.calculateMouseCoordinates(event, 'drag');
+            targetObject.startDrag(dragCoords.x, dragCoords.y);
+            return;
+          }
         }
       }
     }
@@ -203,12 +228,19 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
     if (!this.isMouseDown || !this.draggingWindow) return;
 
     const { x, y } = this.calculateMouseCoordinates(event, 'drag');
-    this.draggingWindow.updateDrag(x, y);
+
+    if (this.draggingWindow instanceof AboutMeWindowObject ||
+      this.draggingWindow instanceof PopupWindowObject) {
+      this.draggingWindow.updateDrag(x, y);
+    }
   }
 
   private onMouseUp(): void {
     if (this.draggingWindow) {
-      this.draggingWindow.stopDrag();
+      if (this.draggingWindow instanceof AboutMeWindowObject ||
+        this.draggingWindow instanceof PopupWindowObject) {
+        this.draggingWindow.stopDrag();
+      }
     }
     this.isMouseDown = false;
     this.draggingWindow = null;

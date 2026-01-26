@@ -68,7 +68,7 @@ export class PopupWindowObject {
   }
 
   private createText(font: Font): void {
-    const textGeometry = new TextGeometry('Popup window', {
+    const textGeometry = new TextGeometry('classic popup window', {
       font: font,
       size: 0.04,
       depth: 0.01,
