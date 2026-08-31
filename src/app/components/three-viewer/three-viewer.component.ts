@@ -1,13 +1,6 @@
-import { Component, ElementRef, AfterViewInit, OnDestroy, ViewChild, Output, EventEmitter } from '@angular/core';
+import { Component, ElementRef, AfterViewInit, OnDestroy, ViewChild, Output } from '@angular/core';
 import * as THREE from 'three';
-import { IconObject } from '../objects/icon.interface';
 import { SunObject } from '../objects/sun.object';
-import { Sun2Object } from '../objects/sun2.object';
-import { TvObject } from '../objects/tv.object';
-import { BaloonObject } from '../objects/baloon.object';
-import { ComputerScreenObject } from '../objects/computer-screen.object';
-import { PopupWindowObject } from '../objects/windows/popup-window.object';
-import { AboutMeWindowObject } from '../objects/windows/aboutme-window.object';
 
 @Component({
   selector: 'app-three-viewer',
@@ -17,8 +10,6 @@ import { AboutMeWindowObject } from '../objects/windows/aboutme-window.object';
 })
 export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
-  @Output() tvZoomChange = new EventEmitter<boolean>();
-  @Output() screenVisibleChange = new EventEmitter<boolean>();
 
   private scene: THREE.Scene | null = null;
   private camera: THREE.OrthographicCamera | null = null;
@@ -26,28 +17,24 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
   private frameId: number = 0;
   private raycaster = new THREE.Raycaster();
   private mouse = new THREE.Vector2();
-  private isMouseDown: boolean = false;
-  private draggingWindow: any = null;
 
   private sun1 = new SunObject();
-  private sun2 = new Sun2Object();
-  private tv = new TvObject();
-  private baloon = new BaloonObject();
 
   async ngAfterViewInit(): Promise<void> {
     await this.init();
     window.addEventListener('resize', () => this.resize());
-
     this.setupEventListeners();
+  }
 
-    this.tv.onZoomToggle = (isZoomed: boolean) => {
-      this.handleTvZoom(isZoomed);
-      this.tvZoomChange.emit(isZoomed);
-    };
+  private setupEventListeners(): void {
+    const canvas = this.canvasRef.nativeElement;
 
-    this.tv.onScreenToggle = (visible: boolean) => {
-      this.screenVisibleChange.emit(visible);
-    };
+    canvas.addEventListener('click', (event) => {
+      this.onCanvasClick(event);
+    });
+
+    canvas.addEventListener('mousedown', (event) => {
+    });
   }
 
   private async init(): Promise<void> {
@@ -79,231 +66,15 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
     this.scene!.add(directionalLight);
   }
 
-
   private async loadAndAddObjects(): Promise<void> {
     const objects = await Promise.all([
-      this.sun1.load(),
-      this.sun2.load(),
-      this.tv.load(),
-      this.baloon.load()
+      this.sun1.load()
     ]);
 
     if (objects.every(obj => obj) && this.scene) {
-      objects.forEach(model => this.scene!.add(model!));
-      await this.tv.createScreen(this.scene);
-
-      if (this.camera) {
-        this.tv.getScreen().getObjects().forEach(obj => {
-          const userData = obj.userData as any;
-          if (userData && userData['object'] && userData['object'].setCamera) {
-            userData['object'].setCamera(this.camera!);
-          }
-        });
-      }
-    }
-  }
-
-  private setupEventListeners(): void {
-    const canvas = this.canvasRef.nativeElement;
-
-    const eventHandlers = {
-      click: (event: MouseEvent) => this.onCanvasClick(event),
-      mousedown: (event: MouseEvent) => this.onMouseDown(event),
-      mousemove: (event: MouseEvent) => this.onMouseMove(event),
-      mouseup: () => this.onMouseUp()
-    };
-
-    (this as any)._eventHandlers = eventHandlers;
-
-    canvas.addEventListener('click', eventHandlers.click);
-    canvas.addEventListener('mousedown', eventHandlers.mousedown);
-    canvas.addEventListener('mousemove', eventHandlers.mousemove);
-    canvas.addEventListener('mouseup', eventHandlers.mouseup);
-  }
-
-  private removeEventListeners(): void {
-    const canvas = this.canvasRef.nativeElement;
-    const eventHandlers = (this as any)._eventHandlers;
-
-    if (eventHandlers) {
-      canvas.removeEventListener('click', eventHandlers.click);
-      canvas.removeEventListener('mousedown', eventHandlers.mousedown);
-      canvas.removeEventListener('mousemove', eventHandlers.mousemove);
-      canvas.removeEventListener('mouseup', eventHandlers.mouseup);
-    }
-  }
-
-  private getCanvasRect(): DOMRect {
-    return this.canvasRef.nativeElement.getBoundingClientRect();
-  }
-
-  private calculateMouseCoordinates(event: MouseEvent, type: 'raycast' | 'drag' = 'raycast'): {x: number, y: number} {
-    const canvas = this.canvasRef.nativeElement;
-    const rect = this.getCanvasRect();
-
-    const clientX = (event.clientX - rect.left) / canvas.clientWidth;
-    const clientY = (event.clientY - rect.top) / canvas.clientHeight;
-
-    if (type === 'raycast') {
-      return {
-        x: clientX * 2 - 1,
-        y: -(clientY * 2 - 1)
-      };
-    } else {
-      return { x: clientX, y: clientY };
-    }
-  }
-
-  private handleObjectIntersection(intersects: THREE.Intersection[], handler: (targetObject: any, object: THREE.Object3D) => boolean): boolean {
-    for (const intersect of intersects) {
-      const object = intersect.object;
-      if (object.userData['clickable'] && object.userData['object']) {
-        const targetObject = object.userData['object'];
-        if (handler(targetObject, object)) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  private onMouseDown(event: MouseEvent): void {
-    const { x, y } = this.calculateMouseCoordinates(event, 'raycast');
-    this.mouse.set(x, y);
-
-    this.raycaster.setFromCamera(this.mouse, this.camera!);
-
-    if (!this.scene) return;
-
-    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-
-    intersects.sort((a, b) => a.distance - b.distance);
-
-    for (const intersect of intersects) {
-      const object = intersect.object;
-      if (object.userData['clickable'] && object.userData['object']) {
-        const targetObject = object.userData['object'];
-
-        // Check for AboutMeWindowObject specifically
-        if (targetObject instanceof AboutMeWindowObject) {
-          // Check for resize handle
-          if (object.userData['isResizeHandle']) {
-            this.isMouseDown = true;
-            this.draggingWindow = targetObject;
-
-            const dragCoords = this.calculateMouseCoordinates(event, 'drag');
-            const edge = object.userData['edge'];
-            targetObject.startResize(dragCoords.x, dragCoords.y, edge);
-            return;
-          }
-
-          // Check for title bar drag
-          if (object.userData['isTitleBar']) {
-            this.isMouseDown = true;
-            this.draggingWindow = targetObject;
-
-            const dragCoords = this.calculateMouseCoordinates(event, 'drag');
-            targetObject.startDrag(dragCoords.x, dragCoords.y);
-            return;
-          }
-        }
-
-        // Handle PopupWindowObject (non-resizable)
-        if (targetObject instanceof PopupWindowObject) {
-          // Only title bar drag for PopupWindowObject
-          if (object.userData['isTitleBar']) {
-            this.isMouseDown = true;
-            this.draggingWindow = targetObject;
-
-            const dragCoords = this.calculateMouseCoordinates(event, 'drag');
-            targetObject.startDrag(dragCoords.x, dragCoords.y);
-            return;
-          }
-        }
-      }
-    }
-  }
-
-  private onMouseMove(event: MouseEvent): void {
-    if (!this.isMouseDown || !this.draggingWindow) return;
-
-    const { x, y } = this.calculateMouseCoordinates(event, 'drag');
-
-    if (this.draggingWindow instanceof AboutMeWindowObject ||
-      this.draggingWindow instanceof PopupWindowObject) {
-      this.draggingWindow.updateDrag(x, y);
-    }
-  }
-
-  private onMouseUp(): void {
-    if (this.draggingWindow) {
-      if (this.draggingWindow instanceof AboutMeWindowObject ||
-        this.draggingWindow instanceof PopupWindowObject) {
-        this.draggingWindow.stopDrag();
-      }
-    }
-    this.isMouseDown = false;
-    this.draggingWindow = null;
-  }
-
-  private handleTvZoom(isZoomed: boolean): void {
-    if (!this.scene) return;
-
-    if (isZoomed) {
-      this.tv.hideOtherObjects(this.scene);
-    } else {
-      this.tv.showOtherObjects(this.scene);
-    }
-  }
-
-  private onCanvasClick(event: MouseEvent): void {
-    if (this.isMouseDown) return;
-
-    const { x, y } = this.calculateMouseCoordinates(event, 'raycast');
-    this.mouse.set(x, y);
-
-    this.raycaster.setFromCamera(this.mouse, this.camera!);
-
-    if (!this.scene) return;
-
-    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-
-    intersects.sort((a, b) => a.distance - b.distance);
-
-    for (const intersect of intersects) {
-      const object = intersect.object;
-      if (object.userData['clickable'] && object.userData['object']) {
-        const targetObject = object.userData['object'];
-
-        if (targetObject instanceof PopupWindowObject ||
-          targetObject instanceof AboutMeWindowObject) {
-
-          if (object.userData['isCloseButton']) {
-            targetObject.handlePopupClick(object);
-          }
-          return;
-        }
-
-        if (targetObject instanceof IconObject) {
-          targetObject.handleClick();
-          return;
-        }
-
-        if (targetObject instanceof ComputerScreenObject) {
-          if (object.userData['isIcon']) {
-            targetObject.handleIconClickByObject(object);
-            return;
-          } else if (object.userData['isScreenBackground']) {
-            targetObject.handleBackgroundClick();
-            return;
-          }
-        }
-
-        if (targetObject.handleClick) {
-          targetObject.handleClick();
-          return;
-        }
-      }
+      objects.forEach(model => {
+        this.scene!.add(model!);
+      });
     }
   }
 
@@ -348,11 +119,44 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  private onCanvasClick(event: MouseEvent): void {
+
+    if (!this.scene || !this.camera) {
+      return;
+    }
+
+    const canvas = this.canvasRef.nativeElement;
+    const rect = canvas.getBoundingClientRect();
+
+    const x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+    const y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
+
+    this.mouse.set(x, y);
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+
+    if (intersects.length > 0) {
+    }
+
+    for (const intersect of intersects) {
+      const object = intersect.object;
+
+      if (object.userData['clickable'] && object.userData['object']) {
+        const targetObject = object.userData['object'];
+
+        if (targetObject instanceof SunObject) {
+          targetObject.handleClick();
+          return;
+        }
+      }
+    }
+  }
+
   private animate = (): void => {
     this.frameId = requestAnimationFrame(this.animate);
 
-    [this.sun1, this.sun2, this.tv, this.baloon].forEach(obj => obj.update());
-    this.tv.getScreen().update();
+    this.sun1.update();
 
     if (this.scene && this.camera && this.renderer) {
       this.renderer.sortObjects = false;
@@ -363,8 +167,6 @@ export class ThreeViewerComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     cancelAnimationFrame(this.frameId);
     window.removeEventListener('resize', () => this.resize());
-
-    this.removeEventListeners();
     this.renderer?.dispose();
   }
 }

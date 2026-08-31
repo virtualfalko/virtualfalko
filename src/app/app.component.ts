@@ -8,7 +8,13 @@ import { CommonModule } from '@angular/common';
   imports: [ThreeViewerComponent, CommonModule],
   standalone: true
 })
+
 export class AppComponent {
-  isTvZoomed: boolean = false;
-  onTvZoomChanged = (zoomed: boolean) => this.isTvZoomed = zoomed;
+  currentYear = new Date().getFullYear();
+
+  showAbout: boolean = false;
+
+  toggleAbout() {
+    this.showAbout = !this.showAbout;
+  }
 }

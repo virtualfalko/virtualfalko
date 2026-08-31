@@ -6,10 +6,13 @@ export class SunObject {
   private originalScale: number = 1;
   private isAnimating: boolean = false;
   private animationTime: number = 0;
+  private isSpinning: boolean = false;
+  private spinDuration: number = 0;
+  private originalRotationSpeed: number = 0.0085;
 
   constructor(
-    private position: { x: number; y: number; z: number } = { x: -0.75, y: 0.9, z: 0 },
-    private scale: number = 0.3,
+    private position: { x: number; y: number; z: number } = { x: 0, y: -0.39, z: 0 },
+    private scale: number = 1.05,
     private onClick: () => void = () => {}
   ) {}
 
@@ -28,7 +31,9 @@ export class SunObject {
           resolve(this.model);
         },
         undefined,
-        (error) => reject(error)
+        (error) => {
+          reject(error);
+        }
       );
     });
   }
@@ -36,13 +41,30 @@ export class SunObject {
   update(): void {
     if (!this.model) return;
 
-    this.model.rotation.y += 0.0005;
-    this.model.rotation.x += 0.0005;
+    // Normal rotation
+    this.model.rotation.y += 0.0085;
 
-    if (this.isAnimating) {
+    // Spinning animation
+    if (this.isSpinning) {
+      this.spinDuration += 0.016;
+      this.model.rotation.y += 0.085;
+
+      const pulse = Math.sin(this.spinDuration * 15);
+      const scale = 1 + (pulse * 0);
+      this.model.scale.setScalar(this.originalScale * scale);
+
+      // Spinning animation stop
+      if (this.spinDuration >= 1.5) {
+        this.isSpinning = false;
+        this.spinDuration = 0;
+        this.model.scale.setScalar(this.originalScale);
+      }
+    }
+
+    if (this.isAnimating && !this.isSpinning) {
       this.animationTime += 0.08;
       const pulse = Math.sin(this.animationTime);
-      const scale = 1 + (pulse * 0.2);
+      const scale = 1 + (pulse * 0.1);
       this.model.scale.setScalar(this.originalScale * scale);
 
       if (this.animationTime >= Math.PI) {
@@ -54,19 +76,30 @@ export class SunObject {
   }
 
   handleClick(): void {
-    if (!this.isAnimating) {
-      this.isAnimating = true;
-      this.animationTime = 0;
+    console.log('[SunObject] handleClick() called');
+    if (!this.isSpinning) {
+      console.log('[SunObject] Starting spin animation');
+      this.isSpinning = true;
+      this.spinDuration = 0;
+
+      if (!this.isAnimating) {
+        this.isAnimating = true;
+        this.animationTime = 0;
+      }
+
       this.onClick();
+    } else {
     }
   }
 
   private makeClickable(): void {
     if (!this.model) return;
+    let meshCount = 0;
     this.model.traverse((child: any) => {
       if (child.isMesh) {
         child.userData.clickable = true;
         child.userData.object = this;
+        meshCount++;
       }
     });
   }
