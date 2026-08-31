@@ -12,15 +12,12 @@ export class AboutMeWindowObject extends ResizableWindow {
     enableDebug: boolean = true
   ) {
     super(position, width, height, texturePath, enableDebug);
-    // Set default content text
-    this.setContentText('Cow tipping is the purported activity of sneaking up on any unsuspecting or sleeping upright cow and pushing it over for entertainment. The practice of cow tipping is generally considered an urban legend[1] and stories of such feats are viewed as tall tales.[2] The implication that rural citizens seek such entertainment due to lack of alternatives is viewed as a stereotype.[3][4] The concept of cow tipping apparently developed in the 1970s, though tales of animals that cannot rise if they fall has historical antecedents dating to the Roman Empire. ');
-    this.setTitleText('Cow tipping');
+    this.setContentText('Yello! Ignore this computer page for now im gonna have to pay someone to actually code this for me im too impatient for this');
+    this.setTitleText('About me');
   }
 
-  // Override to return only corner handles
   protected getResizeHandlePositions(): Array<{ posX: number; posY: number; edge: string }> {
     return [
-      // Only corner handles
       { posX: -this.width/2, posY: this.height/2, edge: 'top-left' },
       { posX: this.width/2, posY: this.height/2, edge: 'top-right' },
       { posX: -this.width/2, posY: -this.height/2, edge: 'bottom-left' },

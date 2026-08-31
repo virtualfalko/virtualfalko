@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export class WindowDebug {
-  private debugMode: boolean = true;
+  private debugMode: boolean = false;
   private debugMaterials: { [key: string]: THREE.Material } = {};
 
   constructor() {
