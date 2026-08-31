@@ -1,0 +1,41 @@
+{
+  "name": "virtualfalko",
+  "version": "0.0.0",
+  "scripts": {
+    "start": "ng serve",
+    "build": "ng build",
+    "tailwind": "npx @tailwindcss/cli -i ./src/styles.css -o ./src/output.css --watch",
+    "tailwind:build": "npx @tailwindcss/cli -i ./src/styles.css -o ./src/output.css",
+    "watch": "ng build --watch --configuration development"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "private": true,
+  "dependencies": {
+    "@angular/core": "^21.0.0",
+    "@angular/platform-browser": "^21.0.0",
+    "rxjs": "~7.8.0",
+    "three": "^0.182.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^21.0.4",
+    "@angular/cli": "^21.0.4",
+    "@angular/compiler": "^21.0.0",
+    "@angular/compiler-cli": "^21.0.0",
+    "@tailwindcss/cli": "^4.1.18",
+    "@types/three": "^0.182.0",
+    "tailwindcss": "^4.1.18",
+    "typescript": "~5.9.2"
+  }
+}

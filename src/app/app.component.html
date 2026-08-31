@@ -1,0 +1,55 @@
+<div class="min-h-screen bg-gradient-to-b from-gray-700 to-gray-100 flex flex-col items-center p-6 relative">
+  <div class="absolute inset-0">
+    <app-three-viewer></app-three-viewer>
+  </div>
+
+  <div class="relative z-10 pt-16 flex flex-col">
+    <div>
+      <div class="w-40 h-40 rounded-full border-4 border-white shadow-lg overflow-hidden mb-12 mx-auto">
+        <img src="Falko.png" alt="Falko" class="w-full h-full object-cover">
+      </div>
+
+      <div class="w-full max-w-xs space-y-4 mx-auto">
+        <div *ngIf="!showAbout" class="space-y-4 transition-all duration-500">
+          <a href="https://soundcloud.com/falko256" target="_blank" class="flex items-center justify-center gap-3 text-white px-6 py-4 rounded-xl font-semibold transition-all hover:scale-[1.02] shadow-lg backdrop-blur-sm bg-white/10 border border-white/20 hover:bg-white/20">
+            <span class="text-lg">Soundcloud</span>
+          </a>
+
+          <a href="https://www.youtube.com/@falko256" target="_blank" class="flex items-center justify-center gap-3 text-white px-6 py-4 rounded-xl font-semibold transition-all hover:scale-[1.02] shadow-lg backdrop-blur-sm bg-white/10 border border-white/20 hover:bg-white/20">
+            <span class="text-lg">Youtube</span>
+          </a>
+
+          <a href="https://www.instagram.com/falko_256/" target="_blank" class="flex items-center justify-center gap-3 text-white px-6 py-4 rounded-xl font-semibold transition-all hover:scale-[1.02] shadow-lg backdrop-blur-sm bg-white/10 border border-white/20 hover:bg-white/20">
+            <span class="text-lg">Instagram</span>
+          </a>
+
+          <a href="https://www.tiktok.com/@falko_256" target="_blank" class="flex items-center justify-center gap-3 text-white px-6 py-4 rounded-xl font-semibold transition-all hover:scale-[1.02] shadow-lg backdrop-blur-sm bg-white/10 border border-white/20 hover:bg-white/20">
+            <span class="text-lg">Tiktok</span>
+          </a>
+        </div>
+
+        <button (click)="toggleAbout()" class="w-full flex items-center justify-center gap-3 text-white px-6 py-4 rounded-xl font-semibold transition-all hover:scale-[1.02] shadow-lg backdrop-blur-sm bg-white/10 border border-white/20 hover:bg-white/20">
+          <span class="text-lg">{{ showAbout ? '← Back' : 'More...' }}</span>
+        </button>
+
+        <div *ngIf="showAbout" class="transition-all duration-500 transform">
+          <div class="backdrop-blur-md bg-white/10 border border-white/20 rounded-xl p-6 shadow-lg animate-fadeIn">
+            <h3 class="text-white text-xl font-bold mb-3">About Me</h3>
+            <p class="text-white/80 text-sm leading-relaxed mb-4">
+              HI HI HELLO! im also on discord! message me &#64;falko256
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-8 text-center space-y-2">
+      <p class="text-black/80 text-sm backdrop-blur-sm bg-white/5 px-6 py-3 rounded-xl border border-white/10">
+        📧 <a href="mailto:virtualfalko@gmail.com" class="hover:text-white transition-colors">virtualfalko&#64;gmail.com</a>
+      </p>
+      <p class="text-black/60 text-xs backdrop-blur-sm bg-white/5 px-4 py-2 rounded-lg border border-white/10 inline-block">
+        © 2026 Falko. Based in the Netherlands. All rights reserved.
+      </p>
+    </div>
+  </div>
+</div>
