@@ -19,7 +19,7 @@ export class SunObject {
   async load(): Promise<THREE.Group> {
     return new Promise((resolve, reject) => {
       new GLTFLoader().load(
-        '/assets/models/sun.glb',
+        'assets/models/sun.glb',
         (gltf) => {
           this.model = gltf.scene;
           this.originalScale = this.scale;
